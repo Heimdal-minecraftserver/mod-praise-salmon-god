@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "praise-salmon-god",
+	"version": "${version}",
+	"name": "Praise Salmon God",
+	"description": "Praise the Salmon God, for they are fishy! Praise the Salmon God, for they are kind! Praise the Salmon God... and if your hands are empty and your feet are wet, you shall be blessed with their flaky bounty. Stand in the sacred waters, empty of earthly possessions, and speak the divine words: ‘Praise Salmon.’ For the Salmon God is generous, mysterious, and smells slightly of rivers.",
+	"authors": [
+		"Benny De Bock"
+	],
+	"contact": {
+		"homepage": "https://heimdal.be/",
+		"sources": "https://github.com/Heimdal-minecraftserver/mod-praise-salmon-god"
+	},
+	"license": "MIT",
+	"icon": "assets/praise-salmon-god/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"be.heimdal.praisesalmongod.PraiseSalmonGod"
+		],
+		"client": [
+			"be.heimdal.praisesalmongod.PraiseSalmonGodClient"
+		]
+	},
+	"mixins": [
+		"praise-salmon-god.mixins.json",
+		{
+			"config": "praise-salmon-god.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
