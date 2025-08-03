@@ -19,12 +19,9 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
-
 	mods {
 		"praise-salmon-god" {
 			sourceSet sourceSets.main
-			sourceSet sourceSets.client
 		}
 	}
 

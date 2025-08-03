@@ -19,20 +19,10 @@
 			"be.heimdal.praisesalmongod.PraiseSalmonGod"
 		]
 	},
-	"mixins": [
-		"praise-salmon-god.mixins.json",
-		{
-			"config": "praise-salmon-god.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.16.14",
 		"minecraft": "~1.21.8",
 		"java": ">=21",
 		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
 	}
 }
