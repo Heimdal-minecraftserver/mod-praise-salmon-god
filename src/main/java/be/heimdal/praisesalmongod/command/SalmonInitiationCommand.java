@@ -1,33 +1,34 @@
 package be.heimdal.praisesalmongod.command;
 
-import com.google.common.collect.ImmutableList;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.SalmonEntity;
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class SalmonInitiationCommand {
-    private static final Map<MinecraftServer, Integer> tickCounters = new HashMap<>();
+    private static final String commandName = "salmoninitiation";
+    private static final Map<UUID, Integer> tickCounters = new HashMap<>();
     private static final int DURATION_TICKS = 20 * 10; // 5 seconds
+    private static boolean tickHandlerRegistered = false;
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(
-                CommandManager.literal("salmoninitiation")
+                CommandManager.literal(commandName)
                         .requires(CommandManager.requirePermissionLevel(2))
                         .executes(context -> {
                             Entity sender = context.getSource().getEntityOrThrow();
@@ -46,39 +47,69 @@ public class SalmonInitiationCommand {
     }
 
     private static int execute(ServerCommandSource source, ServerPlayerEntity target) {
-        // TODO: Fix issue with salmon duplication
-        // TODO: Fix issue with last player being salmed
+        UUID uuid = target.getUuid();
+
+        if(tickCounters.containsKey(uuid)){
+            source.sendFeedback(() -> Text.literal(target.getName().getString())
+                    .append(" is already being salmoned."), false);
+        }
         source.sendFeedback(() -> Text.literal("Let the salmon initiation for ")
                 .append(target.getDisplayName())
                 .append(" begin!"), true);
 
-        MinecraftServer server = source.getServer();
-        tickCounters.put(server, 0);
+        tickCounters.put(uuid, 0);
 
-        ServerTickEvents.END_SERVER_TICK.register(s -> {
-            if(!tickCounters.containsKey(s)) return;
+        if(!tickHandlerRegistered) {
+            ServerTickEvents.END_SERVER_TICK.register(server ->
+                    tickCounters.entrySet().removeIf(entry ->{
+                UUID playerId = entry.getKey();
+                int tick = entry.getValue();
 
-            int tick = tickCounters.get(s);
-            tick++;
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                if(player == null) return true; // Player left, clean up
+                tick++;
 
-            if(tick % 10 == 0) {
+                if(tick % 10 == 0) {
                     ThreadLocalRandom random = ThreadLocalRandom.current();
-                    int offsetX = random.nextInt(-1, 2);
-                    int offsetY = random.nextInt(-1, 2);
-                    ServerWorld world = (ServerWorld) target.getWorld();
-                    BlockPos pos = target.getBlockPos().up(5).add(offsetX, 0, offsetY); // 5 blocks above
-                    SalmonEntity fish = new SalmonEntity(EntityType.SALMON, world);
-                    fish.refreshPositionAndAngles(pos, 0, 0);
-                    world.spawnEntity(fish);
-            }
+                    double offsetX = random.nextDouble(-1, 1);
+                    double offsetZ = random.nextDouble(-1, 1);
+                    double spawnX = player.getX() + offsetX;
+                    double spawnY = player.getY() + 5.0;
+                    double spawnZ = player.getZ() + offsetZ;
 
-            if (tick >= DURATION_TICKS) {
-                tickCounters.remove(s);
-            } else {
-                tickCounters.put(s, tick);
-            }
-        });
+                    // Spawn particles from which they fall
+                    player.getWorld().spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            player.getX(),
+                            spawnY,
+                            player.getZ(),
+                            4,
+                            0.5,0.2,0.5,
+                            0.0);
+                    player.getWorld().spawnParticles(ParticleTypes.HAPPY_VILLAGER,
+                            player.getX(),
+                            spawnY - 0.5f,
+                            player.getZ(),
+                            2,
+                            0.3,0.2,0.3,
+                            0.0);
 
+                    SalmonEntity fish = new SalmonEntity(EntityType.SALMON, player.getWorld());
+                    fish.refreshPositionAndAngles(spawnX, spawnY, spawnZ, 0, 0);
+                    // Duration 20 seconds
+                    fish.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 50, 4));
+                    fish.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 200, 0));
+                    player.getWorld().spawnEntity(fish);
+                }
+
+                if (tick >= DURATION_TICKS) {
+                    return true;
+                } else {
+                    entry.setValue(tick);
+                    return false;
+                }
+            }));
+            tickHandlerRegistered = true;
+        }
         return 1;
     }
 }
